@@ -1,1 +1,1 @@
-(import ./nix/build.nix {}).env.haskell
+(import ./nix/build.nix {}).shell

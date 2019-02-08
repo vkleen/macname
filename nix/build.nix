@@ -1,23 +1,28 @@
-{ pkgs ? import (import ./fetch-nixpkgs.nix) {}, compiler ? "ghc842" }:
+{ pkgs-func ? import (import ./fetch-nixpkgs.nix), compiler ? "ghc863" }:
 
-with pkgs.lib; with pkgs.haskell.lib;
 let
-  pkgsMake = import ./pkgs-make {
-    origNixpkgs = pkgs;
-    haskellArgs = {
-      ghcVersion = compiler;
-    };
+  overlays = [];
+  pkgs = pkgs-func {
+    inherit overlays;
   };
-in pkgsMake ({call, lib} :
-  let
-    modifiedHaskellCall = f:
-      lib.nix.composed [
-        lib.haskell.enableLibraryProfiling
-        lib.haskell.doHaddock
-        f
-      ];
-    haskellLib = modifiedHaskellCall call.haskell.lib;
-    haskellApp = modifiedHaskellCall call.haskell.app;
-  in rec {
-    macname             = haskellApp ../.;
-  })
+  composed = builtins.foldl' (a: acc: b: a (acc b)) (a: a);
+in with pkgs.lib; with pkgs.haskell.lib;
+let
+  enable = x: drv: enableCabalFlag drv x;
+  disable = x: drv: disableCabalFlag drv x;
+  stdhsPackages = pkgs.haskell.packages."${compiler}".extend (self: super: {
+  });
+  haskellPackages = stdhsPackages.extend (self: super: {
+    macname      = (self.callCabal2nixWithOptions "macname" ../. "" {});
+  });
+in rec {
+  inherit haskellPackages;
+  inherit (haskellPackages) macname;
+  shell = haskellPackages.shellFor {
+    packages = p: with p; [ macname ];
+    withHoogle = true;
+    buildInputs = with haskellPackages; [
+      cabal2nix cabal-install ghcid stylish-haskell hpack hlint
+    ];
+  };
+}
