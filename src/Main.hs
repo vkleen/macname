@@ -67,20 +67,20 @@ run (Hash a) = let el = byteStringToElement a
 
 run (Bruteforce e) = do
   bs <- bruteforce (C.element e)
-  printf "\r\x1b[K"
+  printf "\n"
   run . Hash . render $ bs
 
 hashOptions :: Parser Mode
 hashOptions = Hash <$>
-  (helper <*> argument str (metavar "<data>"))
+  argument str (metavar "<data>")
 
 searchOptions :: Parser Mode
 searchOptions = Bruteforce <$>
-  (helper <*> argument auto (metavar "<atomic number>"))
+   argument auto (metavar "<atomic number>")
 
 opts :: Parser Mode
 opts =
-  subparser
+  hsubparser
     (  command "hash" (info hashOptions
          (progDesc "Hash a string into an element using Blake2b_512."))
     <> command "search" (info searchOptions
@@ -88,6 +88,6 @@ opts =
     )
 
 main :: IO ()
-main = execParser o >>= run
+main = customExecParser (prefs showHelpOnError) o >>= run
   where o = info (helper <*> opts) (  fullDesc
                                    <> progDesc "Generate hostnames from random data.")
