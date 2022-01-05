@@ -6,6 +6,7 @@ import           Control.Monad (when)
 import           Crypto.Hash
 import           Crypto.Random (MonadRandom(..))
 import           Data.Bits
+import           Data.Word (Word64)
 import           Data.ByteArray (convert)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Builder as BL
@@ -16,6 +17,8 @@ import           Options.Applicative
 import qualified Radium.Element as C
 import           System.IO (hFlush, stdout)
 import           Text.Printf (printf)
+import           Data.Function ((&))
+import           System.Exit (exitFailure)
 
 byteStringToElement :: BS.ByteString -> C.Element
 byteStringToElement =     hashWith Blake2b_512
@@ -32,41 +35,48 @@ randomBytes = getRandomBytes 16
 render :: BS.ByteString -> BS.ByteString
 render = BL.byteStringHex >>> BL.toLazyByteString >>> BL.toStrict
 
-output :: Int -> BS.ByteString -> Int -> Int -> IO ()
-output n bs t1 t2 = do
-  printf "\r\x1b[K%10d %s (%s): %3d %d"
+output :: Word64 -> BS.ByteString -> Int -> Int -> Int -> IO ()
+output n bs t1 t2 t3 = do
+  printf "\r\x1b[K%10d %s (%s) (%s): %3d %d %d"
     n
     (decodeUtf8 $ render bs)
     (decodeUtf8.render $ BS.take 4 bs)
-    t1 t2
+    (decodeUtf8.render $ BS.take 2 bs)
+    t1 t2 t3
   hFlush stdout
 
-tryOnce :: IO (BS.ByteString, C.Element, C.Element)
-tryOnce = do
-  bs <- randomBytes
-  let t1 = byteStringToElement (render bs)
+tryOnce :: Word64 -> (BS.ByteString, C.Element, C.Element, C.Element)
+tryOnce n =
+  let bs = BS.take 16 . convert . hashWith Blake2b_512 .
+           BL.toStrict . BL.toLazyByteString . BL.word64HexFixed $ n
+      t1 = byteStringToElement (render bs)
       t2 = byteStringToElement (render $ BS.take 4 bs)
-  pure (bs, t1, t2)
+      t3 = byteStringToElement (render $ BS.take 2 bs)
+  in (bs, t1, t2, t3)
 
 bruteforce :: C.Element -> IO BS.ByteString
 bruteforce e = go 0
   where
-    go :: Int -> IO BS.ByteString
+    go :: Word64 -> IO BS.ByteString
     go !n = do
-      (bs, t1, t2) <- tryOnce
-      when (n `mod` 256 == 0) $ output n bs (C.atomicNumber t1) (C.atomicNumber t2)
-      if (e == t1) && (e == t2)
-        then output n bs (C.atomicNumber t1) (C.atomicNumber t2) >> pure bs
+      let (bs, t1, t2, t3) = tryOnce n
+      when (n `mod` 0x100 == 0) $ output n bs (C.atomicNumber t1) (C.atomicNumber t2) (C.atomicNumber t3)
+      if (e == t1) && (e == t2) && (e == t3)
+        then output n bs (C.atomicNumber t1) (C.atomicNumber t2) (C.atomicNumber t3) >> pure bs
         else go (n+1)
 
-data Mode = Hash BS.ByteString | Bruteforce Int
+data Mode = Hash BS.ByteString | Bruteforce String
 
 run :: Mode -> IO ()
 run (Hash a) = let el = byteStringToElement a
                in printf "%s = %3d %s\n" (decodeUtf8 a) (C.atomicNumber el) (C.name el)
 
-run (Bruteforce e) = do
-  bs <- bruteforce (C.element e)
+run (Bruteforce e_symb) = do
+  e <- case C.elementBySymbol e_symb of
+    C.Unknown -> do printf "I don't know about %s.\n" e_symb
+                    exitFailure
+    e' -> pure e'
+  bs <- bruteforce e
   printf "\n"
   run . Hash . render $ bs
 
@@ -76,7 +86,7 @@ hashOptions = Hash <$>
 
 searchOptions :: Parser Mode
 searchOptions = Bruteforce <$>
-   argument auto (metavar "<atomic number>")
+   argument str (metavar "<element>")
 
 opts :: Parser Mode
 opts =
@@ -84,7 +94,7 @@ opts =
     (  command "hash" (info hashOptions
          (progDesc "Hash a string into an element using Blake2b_512."))
     <> command "search" (info searchOptions
-         (progDesc "Find a hexadecimal string of length 32 such that it and its 8 character prefix hash to a given element."))
+         (progDesc "Find a hexadecimal string of length 32 such that it, its 8 character prefix and its 4 character prefix hash to a given element."))
     )
 
 main :: IO ()
