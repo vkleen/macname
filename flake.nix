@@ -28,7 +28,7 @@
         packages = [
           p.haskell.packages."ghc${ghcVersion}".cabal-install
         ];
-        inputsFrom = [ self.legacyPackages."${system}".macname.env ];
+        inputsFrom = [ self.packages."${system}".macname.env ];
       };
   in {
     devShell = forAllSystems devShell;
