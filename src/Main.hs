@@ -74,7 +74,7 @@ run :: Args -> IO ()
 run Args { quiet, mode = Hash a } =
   let el = byteStringToElement a
   in case quiet of
-    True -> printf "%s\n" $ decodeUtf8 a
+    True -> printf "%d %s\n" (C.atomicNumber el) (C.name el)
     False -> printf "%s = %3d %s\n" (decodeUtf8 a) (C.atomicNumber el) (C.name el)
 
 run a@Args { quiet, mode = Bruteforce ns e_symb } = do
@@ -83,8 +83,11 @@ run a@Args { quiet, mode = Bruteforce ns e_symb } = do
                     exitFailure
     e' -> pure e'
   bs <- bruteforce quiet ns e
-  unless quiet $ printf "\n"
-  run $ a { mode = Hash . render $ bs }
+  case quiet of
+    True -> printf "%s\n" (decodeUtf8 $ render bs)
+    False -> do
+      printf "\n"
+      run $ a { mode = Hash . render $ bs }
 
 hashOptions :: Parser Mode
 hashOptions = Hash <$>
