@@ -14,10 +14,12 @@ module Radium.Element ( Element(..)
                       , electronConfig
                       , element
                       , elementBySymbol
+                      , elementByName
                       , valanceElectrons
                       , covalentBounds ) where
                          
 import qualified Data.Map as Map                       
+import Data.Char (toLower)
 
 
 data Element = Element { atomicNumber :: Int
@@ -170,7 +172,14 @@ elementBySymbol ns = f ns ptable
     where f :: String -> [Element] -> Element
           f _ [] = Unknown
           f xs (e:es) | symbol e == xs = e
-                     | otherwise = f xs es
+                      | otherwise = f xs es
+
+elementByName :: String -> Element
+elementByName ns = f ns ptable
+  where f :: String -> [Element] -> Element
+        f _ [] = Unknown
+        f xs (e:es) | map toLower (name e) == map toLower xs  = e
+                    | otherwise = f xs es
 
 -- Electron configuration exceptions to Aufbau principle
 configExceptions :: Map.Map Int [Int] 

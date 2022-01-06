@@ -79,8 +79,10 @@ run Args { quiet, mode = Hash a } =
 
 run a@Args { quiet, mode = Bruteforce ns e_symb } = do
   e <- case C.elementBySymbol e_symb of
-    C.Unknown -> do printf "I don't know about %s.\n" e_symb
-                    exitFailure
+    C.Unknown -> case C.elementByName e_symb of
+      C.Unknown -> do printf "I don't know about %s.\n" e_symb
+                      exitFailure
+      e' -> pure e'
     e' -> pure e'
   bs <- bruteforce quiet ns e
   case quiet of
