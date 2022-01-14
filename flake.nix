@@ -13,6 +13,13 @@
 
     overlays = system:
       [
+      (final: prev: {
+        haskell = prev.haskell // {
+          packageOverrides = hfinal: hprev: {
+            basement = final.haskell.lib.dontHaddock hprev.basement;
+          };
+        };
+      })
       ];
 
     pkgs = forAllSystems' (system: pkgs: pkgs.appendOverlays (overlays system));
