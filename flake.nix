@@ -17,6 +17,7 @@
         haskell = prev.haskell // {
           packageOverrides = hfinal: hprev: {
             basement = final.haskell.lib.dontHaddock hprev.basement;
+            optparse-applicative = final.haskell.lib.dontCheck hprev.optparse-applicative;
             QuickCheck = final.haskell.lib.dontCheck hprev.QuickCheck;
           };
         };
