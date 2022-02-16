@@ -40,9 +40,23 @@
         ];
         inputsFrom = [ self.packages."${system}".macname.env ];
       };
+
+    idTableDrv = namespace: pkgs.x86_64-linux.runCommandNoCC "generate-hostid"
+    { buildInputs = [
+        self.packages.x86_64-linux.macname
+        pkgs.x86_64-linux.coreutils
+      ];
+    } ''
+      macname -q nix-table "${namespace}" > $out
+    '';
   in {
     devShell = forAllSystems devShell;
     packages = forAllSystems pkg;
+
+    idTable = lib.genAttrs [
+      "wolkenheim.kleen.org"
+      "auenheim.kleen.org"
+    ] (ns: import (idTableDrv ns));
 
     defaultPackage = forAllSystems (s: _: self.packages."${s}".macname);
   };
