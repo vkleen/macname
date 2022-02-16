@@ -13,6 +13,7 @@ This module contains Periodic Table with information about all known elements.
 module Radium.Element ( Element(..)
                       , electronConfig
                       , element
+                      , ptable
                       , elementBySymbol
                       , elementByName
                       , valanceElectrons
@@ -29,7 +30,10 @@ data Element = Element { atomicNumber :: Int
                        , electroNegativity :: Double
                        , ionizationEnergy :: Double
                        } 
-             | Unknown deriving (Eq, Show)
+  deriving (Eq, Show)
+
+instance Ord Element where
+  compare Element{ atomicNumber = a } Element{ atomicNumber = b } = compare a b
 
 -- Periodic Table
 ptable :: [Element]
@@ -157,28 +161,28 @@ ptable = [ Element 1 "H" "Hydrogen"         1.008       2.2     1.312
 -- | Find element by its atomic number
 --
 -- > atomicNumber (element 8) == 8 
-element :: Int -> Element
+element :: Int -> Maybe Element
 element n = f n ptable
-    where f :: Int -> [Element] -> Element
-          f _ [] = Unknown
-          f x (e:es) | atomicNumber e == x = e
+    where f :: Int -> [Element] -> Maybe Element
+          f _ [] = Nothing
+          f x (e:es) | atomicNumber e == x = Just e
                      | otherwise = f x es
 
 -- | Find element by its symbol
 --
 -- > atomicNumber (elementBySymbol "O") == 8 
-elementBySymbol :: String -> Element
+elementBySymbol :: String -> Maybe Element
 elementBySymbol ns = f ns ptable
-    where f :: String -> [Element] -> Element
-          f _ [] = Unknown
-          f xs (e:es) | symbol e == xs = e
+    where f :: String -> [Element] -> Maybe Element
+          f _ [] = Nothing
+          f xs (e:es) | symbol e == xs = Just e
                       | otherwise = f xs es
 
-elementByName :: String -> Element
+elementByName :: String -> Maybe Element
 elementByName ns = f ns ptable
-  where f :: String -> [Element] -> Element
-        f _ [] = Unknown
-        f xs (e:es) | map toLower (name e) == map toLower xs  = e
+  where f :: String -> [Element] -> Maybe Element
+        f _ [] = Nothing
+        f xs (e:es) | map toLower (name e) == map toLower xs  = Just e
                     | otherwise = f xs es
 
 -- Electron configuration exceptions to Aufbau principle
