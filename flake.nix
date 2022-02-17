@@ -2,12 +2,13 @@
   description = "macname";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/master";
+    utils.url = "github:vkleen/machines?dir=utils";
   };
 
 
   outputs = inputs@{ self, nixpkgs, ... }: let
     inherit (nixpkgs) lib;
+    inherit (inputs.utils.lib.ints) hexToInt;
     forAllSystems' = f: lib.mapAttrs f inputs.nixpkgs.legacyPackages;
     forAllSystems = f: lib.mapAttrs f pkgs;
 
@@ -41,7 +42,7 @@
         inputsFrom = [ self.packages."${system}".macname.env ];
       };
 
-    idTableDrv = namespace: pkgs.x86_64-linux.runCommandNoCC "generate-hostid"
+    idTableDrv = namespace: pkgs.x86_64-linux.runCommandNoCC "generate-hostid-table"
     { buildInputs = [
         self.packages.x86_64-linux.macname
         pkgs.x86_64-linux.coreutils
@@ -49,6 +50,28 @@
     } ''
       macname -q nix-table "${namespace}" > $out
     '';
+
+    # A link is a set containing attributes "to" and "from", each of which is a set { host = ...; intf = ...; }
+    computeLinkId = l:
+      hexToInt (builtins.fromJSON (builtins.readFile (pkgs.x86_64-linux.runCommandNoCC "compute-link-id"
+        { buildInputs = [
+            self.packages.x86_64-linux.macname
+            pkgs.x86_64-linux.coreutils
+          ];
+        } ''
+          printf '"%s"\n' "$(macname -q link-id "${l.from.host}:${l.from.intf} - ${l.to.host}:${l.to.intf}")" > $out
+        '')));
+
+    computeHostId = namespace: element:
+      self.idTable.${namespace}.${element} or (
+        builtins.fromJSON (builtins.readFile (pkgs.x86_64-linux.runCommandNoCC "generate-hostid"
+          { buildInputs = [
+              self.packages.x86_64-linux.macname
+              pkgs.x86_64-linux.coreutils
+            ];
+          } ''
+            printf '"%s"\n' "$(macname -q search "${namespace}" "${element}")" > $out
+          '')));
   in {
     devShell = forAllSystems devShell;
     packages = forAllSystems pkg;
@@ -57,6 +80,8 @@
       "wolkenheim.kleen.org"
       "auenheim.kleen.org"
     ] (ns: import (idTableDrv ns));
+    
+    inherit computeHostId computeLinkId;
 
     defaultPackage = forAllSystems (s: _: self.packages."${s}".macname);
   };
