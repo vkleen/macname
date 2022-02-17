@@ -34,6 +34,12 @@ byteStringToElement =     hashWith Blake2b_512
                       >>> C.element
                       >>> fromJust
 
+hashToLinkId :: BS.ByteString -> BS.ByteString
+hashToLinkId =     hashWith Blake2b_512
+               >>> convert
+               >>> BS.take 6
+               >>> render
+
 render :: BS.ByteString -> BS.ByteString
 render = BL.byteStringHex >>> BL.toLazyByteString >>> BL.toStrict
 
@@ -102,7 +108,7 @@ bruteforceAll quiet ns = go M.empty 0
               else go newMap (n+1)
           else go prevMap (n+1)
 
-data Mode = Hash BS.ByteString | Bruteforce BS.ByteString String | NixTable BS.ByteString
+data Mode = Hash BS.ByteString | Bruteforce BS.ByteString String | NixTable BS.ByteString | LinkId BS.ByteString
 
 data Args = Args { quiet :: Bool
                  , mode :: Mode
@@ -135,6 +141,12 @@ run a@Args { quiet, mode = NixTable ns } = do
   _ <- M.traverseWithKey (\e bs -> printf "\"%s\" = \"%s\";\n" (toLower <$> C.name e) (decodeUtf8 $ render bs)) bss
   printf "}\n"
 
+run a@Args { quiet, mode = LinkId d } =
+  let i = decodeUtf8 $ hashToLinkId d
+  in case quiet of
+    True -> printf "%s\n" i
+    False -> printf "%s = %s\n" (decodeUtf8 d) i
+
 hashOptions :: Parser Mode
 hashOptions = Hash <$>
   argument str (metavar "<data>")
@@ -146,6 +158,9 @@ searchOptions = Bruteforce <$> argument str (metavar "<namespace>")
 nixTableOptions :: Parser Mode
 nixTableOptions = NixTable <$> argument str (metavar "<namespace>")
 
+linkIdOptions :: Parser Mode
+linkIdOptions = LinkId <$> argument str (metavar "<data>")
+
 parseMode :: Parser Mode
 parseMode =
   hsubparser
@@ -155,6 +170,8 @@ parseMode =
          (progDesc "Find a hexadecimal string of length 32 such that it, its 8 character prefix and its 4 character prefix hash to a given element."))
     <> command "nix-table" (info nixTableOptions
          (progDesc "Generate a table in .nix format for all elements in a given namespace."))
+    <> command "link-id" (info linkIdOptions
+         (progDesc "Hash a string into 48 bits by truncating Blake2b_512."))
     )
 
 opts :: Parser Args
