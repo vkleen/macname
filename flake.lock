@@ -34,11 +34,11 @@
       },
       "locked": {
         "dir": "utils",
-        "lastModified": 1645126495,
-        "narHash": "sha256-CbMW1apQC/JfKP3wvlOlFJEOYmZzMJsdbfMKQog8MJQ=",
+        "lastModified": 1645131919,
+        "narHash": "sha256-Lyrp2ZlcXC///es7rchoIGmSXWil+sWxQ+f0Y9OnYqo=",
         "owner": "vkleen",
         "repo": "machines",
-        "rev": "d820db114607641686f06ab9045384552c4501e3",
+        "rev": "aeea6dfe70a3958ac96ba5d6c10ae06ed9bdf2b4",
         "type": "github"
       },
       "original": {
