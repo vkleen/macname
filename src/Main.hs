@@ -34,11 +34,17 @@ byteStringToElement =     hashWith Blake2b_512
                       >>> C.element
                       >>> fromJust
 
+hashN :: Int -> BS.ByteString -> BS.ByteString
+hashN n =   hashWith Blake2b_512
+        >>> convert
+        >>> BS.take n
+        >>> render
+
 hashToLinkId :: BS.ByteString -> BS.ByteString
-hashToLinkId =     hashWith Blake2b_512
-               >>> convert
-               >>> BS.take 6
-               >>> render
+hashToLinkId = hashN 6
+
+hash16 :: BS.ByteString -> BS.ByteString
+hash16 = hashN 2
 
 render :: BS.ByteString -> BS.ByteString
 render = BL.byteStringHex >>> BL.toLazyByteString >>> BL.toStrict
@@ -108,7 +114,11 @@ bruteforceAll quiet ns = go M.empty 0
               else go newMap (n+1)
           else go prevMap (n+1)
 
-data Mode = Hash BS.ByteString | Bruteforce BS.ByteString String | NixTable BS.ByteString | LinkId BS.ByteString
+data Mode = Hash BS.ByteString
+          | Bruteforce BS.ByteString String
+          | NixTable BS.ByteString
+          | LinkId BS.ByteString
+          | Hash16 BS.ByteString
 
 data Args = Args { quiet :: Bool
                  , mode :: Mode
@@ -147,6 +157,12 @@ run a@Args { quiet, mode = LinkId d } =
     True -> printf "%s\n" i
     False -> printf "%s = %s\n" (decodeUtf8 d) i
 
+run a@Args { quiet, mode = Hash16 d } =
+  let i = decodeUtf8 $ hash16 d
+  in case quiet of
+    True -> printf "%s\n" i
+    False -> printf "%s = %s\n" (decodeUtf8 d) i
+
 hashOptions :: Parser Mode
 hashOptions = Hash <$>
   argument str (metavar "<data>")
@@ -161,6 +177,9 @@ nixTableOptions = NixTable <$> argument str (metavar "<namespace>")
 linkIdOptions :: Parser Mode
 linkIdOptions = LinkId <$> argument str (metavar "<data>")
 
+hash16Options :: Parser Mode
+hash16Options = Hash16 <$> argument str (metavar "<data>")
+
 parseMode :: Parser Mode
 parseMode =
   hsubparser
@@ -172,6 +191,8 @@ parseMode =
          (progDesc "Generate a table in .nix format for all elements in a given namespace."))
     <> command "link-id" (info linkIdOptions
          (progDesc "Hash a string into 48 bits by truncating Blake2b_512."))
+    <> command "hash16" (info hash16Options
+         (progDesc "Hash a string into 16 bits by truncating Blake2b_512."))
     )
 
 opts :: Parser Args

@@ -62,6 +62,16 @@
           printf '"%s"\n' "$(macname -q link-id "${l.from.host}:${l.from.intf} - ${l.to.host}:${l.to.intf}")" > $out
         '')));
 
+    computeHash16 = d:
+      hexToInt (builtins.fromJSON (builtins.readFile (pkgs.x86_64-linux.runCommandNoCC "compute-hash16"
+        { buildInputs = [
+            self.packages.x86_64-linux.macname
+            pkgs.x86_64-linux.coreutils
+          ];
+        } ''
+          printf '"%s"\n' "$(macname -q hash16 "${d}")" > $out
+        '')));
+
     computeHostId = namespace: element:
       self.idTable.${namespace}.${element} or (
         builtins.fromJSON (builtins.readFile (pkgs.x86_64-linux.runCommandNoCC "generate-hostid"
@@ -81,7 +91,7 @@
       "auenheim.kleen.org"
     ] (ns: import (idTableDrv ns));
     
-    inherit computeHostId computeLinkId;
+    inherit computeHostId computeLinkId computeHash16;
 
     defaultPackage = forAllSystems (s: _: self.packages."${s}".macname);
   };
