@@ -1,14 +1,9 @@
 {
   description = "macname";
 
-  inputs = {
-    utils.url = "github:vkleen/machines?dir=utils";
-  };
-
-
   outputs = inputs@{ self, nixpkgs, ... }: let
     inherit (nixpkgs) lib;
-    inherit (inputs.utils.lib.ints) hexToInt;
+    inherit (import ./hex-to-int.nix { inherit lib; }) hexToInt;
     forAllSystems' = f: lib.mapAttrs f inputs.nixpkgs.legacyPackages;
     forAllSystems = f: lib.mapAttrs f pkgs;
 
