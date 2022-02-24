@@ -45,10 +45,17 @@
     idTableDrv = namespace: pkgs.x86_64-linux.runCommandNoCC "generate-hostid-table"
     { buildInputs = [
         self.packages.x86_64-linux.macname
-        pkgs.x86_64-linux.coreutils
       ];
     } ''
       macname -q nix-table "${namespace}" > $out
+    '';
+
+    elementTableDrv = pkgs.x86_64-linux.runCommandNoCC "generate-element-table"
+    { buildInputs = [
+        self.packages.x86_64-linux.macname
+      ];
+    } ''
+      macname -q element-table > $out
     '';
 
     # A link is a set containing attributes "to" and "from", each of which is a set { host = ...; intf = ...; }
@@ -90,6 +97,8 @@
       "wolkenheim.kleen.org"
       "auenheim.kleen.org"
     ] (ns: import (idTableDrv ns));
+
+    elementTable = import elementTableDrv;
     
     inherit computeHostId computeLinkId computeHash16;
 

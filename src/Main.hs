@@ -119,6 +119,7 @@ data Mode = Hash BS.ByteString
           | NixTable BS.ByteString
           | LinkId BS.ByteString
           | Hash16 BS.ByteString
+          | ElementTable
 
 data Args = Args { quiet :: Bool
                  , mode :: Mode
@@ -163,6 +164,13 @@ run a@Args { quiet, mode = Hash16 d } =
     True -> printf "%s\n" i
     False -> printf "%s = %s\n" (decodeUtf8 d) i
 
+run Args { mode = ElementTable } = do
+  printf "{\n"
+  traverse_
+    (\e -> printf "\"%s\" = %d;\n\"%d\" = \"%s\";\n" (toLower <$> C.name e) (C.atomicNumber e) (C.atomicNumber e) (toLower <$> C.name e))
+    C.ptable
+  printf "}\n"
+
 hashOptions :: Parser Mode
 hashOptions = Hash <$>
   argument str (metavar "<data>")
@@ -180,6 +188,9 @@ linkIdOptions = LinkId <$> argument str (metavar "<data>")
 hash16Options :: Parser Mode
 hash16Options = Hash16 <$> argument str (metavar "<data>")
 
+elementTableOptions :: Parser Mode
+elementTableOptions = pure ElementTable
+
 parseMode :: Parser Mode
 parseMode =
   hsubparser
@@ -193,6 +204,8 @@ parseMode =
          (progDesc "Hash a string into 48 bits by truncating Blake2b_512."))
     <> command "hash16" (info hash16Options
          (progDesc "Hash a string into 16 bits by truncating Blake2b_512."))
+    <> command "element-table" (info elementTableOptions
+         (progDesc "Generate a table in .nix format mapping element names to atomic number."))
     )
 
 opts :: Parser Args
