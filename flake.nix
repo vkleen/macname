@@ -1,6 +1,10 @@
 {
   description = "macname";
 
+  inputs = {
+    nixpkgs.url = github:NixOS/nixpkgs;
+  };
+
   outputs = inputs@{ self, nixpkgs, ... }: let
     inherit (nixpkgs) lib;
     inherit (import ./hex-to-int.nix { inherit lib; }) hexToInt;
