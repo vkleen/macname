@@ -27,7 +27,7 @@
 
     pkgs = forAllSystems' (system: pkgs: pkgs.appendOverlays (overlays system));
 
-    ghcVersion = "923";
+    ghcVersion = "924";
 
     pkg = _: p: {
       macname = p.haskell.packages."ghc${ghcVersion}".callCabal2nix "macname" "${self}" {};
