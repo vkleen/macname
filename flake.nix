@@ -41,8 +41,12 @@
         ];
       };
 
+
       pkg = _: p: {
-        macname = p.haskell.packages."ghc${ghcVersion}".callCabal2nix "macname" src { };
+        macname-deriver = (p.haskell.packages."ghc${ghcVersion}".callCabal2nix "macname" src { }).cabal2nixDeriver;
+        macname = p.haskell.lib.overrideCabal
+          (p.haskell.packages."ghc${ghcVersion}".callPackage ./macname.nix { })
+          (_: { inherit src; });
       };
 
       devShell = system: p:
@@ -123,6 +127,10 @@
 
       idTable = forAllSystems (s: p: lib.mapAttrs
         (ns: hash: import (idTableDrv s p ns hash))
+        namespaceOutputHashes);
+
+      idTableDrv = forAllSystems (s: p: lib.mapAttrs
+        (ns: hash: idTableDrv s p ns hash)
         namespaceOutputHashes);
 
       elementTable = forAllSystems (s: p: import (elementTableDrv s p));
