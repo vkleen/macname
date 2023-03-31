@@ -3,6 +3,7 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs";
+    nix-filter.url = "github:numtide/nix-filter";
   };
 
   outputs = inputs@{ self, nixpkgs, ... }:
@@ -30,8 +31,18 @@
 
       ghcVersion = "924";
 
+      src = inputs.nix-filter.lib {
+        root = ./.;
+        include = [
+          "macname.cabal"
+          "LICENSE"
+          "Setup.hs"
+          "src"
+        ];
+      };
+
       pkg = _: p: {
-        macname = p.haskell.packages."ghc${ghcVersion}".callCabal2nix "macname" "${self}" { };
+        macname = p.haskell.packages."ghc${ghcVersion}".callCabal2nix "macname" src { };
       };
 
       devShell = system: p:
@@ -42,11 +53,22 @@
           inputsFrom = [ self.packages."${system}".macname.env ];
         };
 
-      idTableDrv = system: p: namespace: p.runCommandNoCC "generate-hostid-table"
+
+      namespaceOutputHashes = {
+        "wolkenheim.kleen.org" = "sha256-3TAAkXRdeolU++i79zyWmD5ZiLlZ/WNwus+A9MAXaQw=";
+        "auenheim.kleen.org" = "sha256-zsdgYcXthIQ63CDlh9Wq+EJsn3Kk9oNuIu6MvocPqi4=";
+        "nixos-installers.kleen.org" = "sha256-YJ++gdGGlF5GRWBWEhHpzWseFJp8pppxbcNUHnf5URw=";
+      };
+
+      idTableDrv = system: p: namespace: outputHash: p.runCommandNoCC "generate-hostid-table"
         {
           buildInputs = [
             self.packages.${system}.macname
           ];
+
+          outputHashMode = "flat";
+          outputHashAlgo = "sha256";
+          inherit outputHash;
         } ''
         macname -q nix-table "${namespace}" > $out
       '';
@@ -99,12 +121,9 @@
       devShell = forAllSystems devShell;
       packages = forAllSystems pkg;
 
-      idTable = forAllSystems (s: p: lib.genAttrs [
-        "wolkenheim.kleen.org"
-        "auenheim.kleen.org"
-        "nixos-installers.kleen.org"
-      ]
-        (ns: import (idTableDrv s p ns)));
+      idTable = forAllSystems (s: p: lib.mapAttrs
+        (ns: hash: import (idTableDrv s p ns hash))
+        namespaceOutputHashes);
 
       elementTable = forAllSystems (s: p: import (elementTableDrv s p));
 
