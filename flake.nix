@@ -42,10 +42,12 @@
       };
 
 
-      pkg = _: p: {
+      pkg = _: p: rec {
+        idTable = idTableDrv p macname;
+        elementTable = elementTableDrv p macname;
         macname-deriver = (p.haskell.packages."ghc${ghcVersion}".callCabal2nix "macname" src { }).cabal2nixDeriver;
         macname = p.haskell.lib.overrideCabal
-          (p.haskell.packages."ghc${ghcVersion}".callPackage ./macname.nix { })
+          (p.haskell.packages."ghc${ghcVersion}".callPackage ./nix/macname.nix { })
           (_: { inherit src; });
       };
 
@@ -58,29 +60,31 @@
         };
 
 
-      namespaceOutputHashes = {
-        "wolkenheim.kleen.org" = "sha256-3TAAkXRdeolU++i79zyWmD5ZiLlZ/WNwus+A9MAXaQw=";
-        "auenheim.kleen.org" = "sha256-zsdgYcXthIQ63CDlh9Wq+EJsn3Kk9oNuIu6MvocPqi4=";
-        "nixos-installers.kleen.org" = "sha256-YJ++gdGGlF5GRWBWEhHpzWseFJp8pppxbcNUHnf5URw=";
-      };
+      namespaces = [
+        "wolkenheim.kleen.org"
+        "auenheim.kleen.org"
+        "nixos-installers.kleen.org"
+      ];
 
-      idTableDrv = system: p: namespace: outputHash: p.runCommandNoCC "generate-hostid-table"
+      idTableDrv = p: macname: p.runCommandNoCC "generate-hostid-table"
         {
           buildInputs = [
-            self.packages.${system}.macname
+            macname
           ];
-
-          outputHashMode = "flat";
-          outputHashAlgo = "sha256";
-          inherit outputHash;
         } ''
-        macname -q nix-table "${namespace}" > $out
+        mkdir $out
+        ${lib.concatMapStrings
+          (namespace: ''
+            macname -q nix-table "${namespace}" > $out/"${namespace}".nix
+          '')
+          namespaces
+        }
       '';
 
-      elementTableDrv = system: p: p.runCommandNoCC "generate-element-table"
+      elementTableDrv = p: macname: p.runCommandNoCC "generate-element-table"
         {
           buildInputs = [
-            self.packages.${system}.macname
+            macname
           ];
         } ''
         macname -q element-table > $out
@@ -110,7 +114,7 @@
         '')));
 
       computeHostId = system: p: namespace: element:
-        self.idTable.${system}.${namespace}.${element} or (
+        self.idTable.${namespace}.${element} or (
           builtins.fromJSON (builtins.readFile (p.runCommandNoCC "generate-hostid"
             {
               buildInputs = [
@@ -125,15 +129,8 @@
       devShell = forAllSystems devShell;
       packages = forAllSystems pkg;
 
-      idTable = forAllSystems (s: p: lib.mapAttrs
-        (ns: hash: import (idTableDrv s p ns hash))
-        namespaceOutputHashes);
-
-      idTableDrv = forAllSystems (s: p: lib.mapAttrs
-        (ns: hash: idTableDrv s p ns hash)
-        namespaceOutputHashes);
-
-      elementTable = forAllSystems (s: p: import (elementTableDrv s p));
+      idTable = lib.listToAttrs (builtins.map (ns: lib.nameValuePair ns (import ./nix/id-table/${ns}.nix)) namespaces);
+      elementTable = import ./nix/element-table.nix;
 
       computeHostId = forAllSystems computeHostId;
       computeLinkId = forAllSystems computeLinkId;
