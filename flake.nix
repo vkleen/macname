@@ -29,7 +29,7 @@
 
       pkgs = forAllSystems' (system: pkgs: pkgs.appendOverlays (overlays system));
 
-      ghcVersion = "94";
+      ghcVersion = "942";
 
       src = inputs.nix-filter.lib {
         root = ./.;
