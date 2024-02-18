@@ -18,18 +18,24 @@
           (final: prev: {
             haskell = prev.haskell // {
               packageOverrides = hfinal: hprev: {
-                basement = final.haskell.lib.dontHaddock hprev.basement;
-                cryptonite = final.haskell.lib.dontHaddock hprev.cryptonite;
-                optparse-applicative = final.haskell.lib.dontCheck hprev.optparse-applicative;
-                QuickCheck = final.haskell.lib.dontCheck hprev.QuickCheck;
+                # basement = final.haskell.lib.dontHaddock hprev.basement;
+                # cryptonite = final.haskell.lib.dontHaddock hprev.cryptonite;
+                # optparse-applicative = final.haskell.lib.dontCheck hprev.optparse-applicative;
+                # QuickCheck = final.haskell.lib.dontCheck hprev.QuickCheck;
               };
             };
           })
         ];
 
-      pkgs = forAllSystems' (system: pkgs: pkgs.appendOverlays (overlays system));
+      ghcVersion = "94";
 
-      ghcVersion = "942";
+      macnameOverlay = final: prev: {
+        macname = final.haskell.lib.overrideCabal
+          (final.haskell.packages."ghc${ghcVersion}".callPackage ./nix/macname.nix { })
+          (_: { inherit src; });
+      };
+
+      pkgs = forAllSystems' (system: pkgs: pkgs.extend macnameOverlay);
 
       src = inputs.nix-filter.lib {
         root = ./.;
@@ -46,9 +52,7 @@
         idTable = idTableDrv p macname;
         elementTable = elementTableDrv p macname;
         macname-deriver = (p.haskell.packages."ghc${ghcVersion}".callCabal2nix "macname" src { }).cabal2nixDeriver;
-        macname = p.haskell.lib.overrideCabal
-          (p.haskell.packages."ghc${ghcVersion}".callPackage ./nix/macname.nix { })
-          (_: { inherit src; });
+        inherit (p) macname;
       };
 
       devShell = system: p:
@@ -127,6 +131,7 @@
     in
     {
       devShell = forAllSystems devShell;
+      overlays.default = macnameOverlay;
       packages = forAllSystems pkg;
 
       idTable = lib.listToAttrs (builtins.map (ns: lib.nameValuePair ns (import ./nix/id-table/${ns}.nix)) namespaces);
